@@ -92,3 +92,123 @@ export const createRequest = async (cafeId, tableNumber, requestType, paymentMet
   }
 };
 
+// Fetch pending requests for Admin Panel
+export const getRequests = async (cafeId) => {
+  try {
+    const query = {
+      structuredQuery: {
+        from: [{ collectionId: 'Requests' }],
+        where: {
+          compositeFilter: {
+            op: 'AND',
+            filters: [
+              {
+                fieldFilter: {
+                  field: { fieldPath: 'cafe_id' },
+                  op: 'EQUAL',
+                  value: { stringValue: cafeId }
+                }
+              },
+              {
+                fieldFilter: {
+                  field: { fieldPath: 'status' },
+                  op: 'EQUAL',
+                  value: { stringValue: 'bekliyor' }
+                }
+              }
+            ]
+          }
+        },
+        orderBy: [
+          { field: { fieldPath: 'timestamp' }, direction: 'DESCENDING' }
+        ]
+      }
+    };
+
+    const response = await fetch(`${BASE_URL}:runQuery`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(query)
+    });
+
+    if (!response.ok) {
+      // Note: First time you run a composite index query, Firebase might require an index.
+      // If it throws an index error, we can fallback to filtering in JS.
+      console.warn('Query failed, falling back to basic fetch');
+      // Fallback: Fetch all requests for cafeId and filter in JS
+      return await getRequestsFallback(cafeId);
+    }
+    
+    const result = await response.json();
+    const requests = [];
+    for (const item of result) {
+      if (item.document) {
+        requests.push(parseFirestoreDocument(item.document));
+      }
+    }
+    return requests;
+  } catch (error) {
+    console.error("Error fetching requests: ", error);
+    return await getRequestsFallback(cafeId);
+  }
+};
+
+// Fallback if composite index is missing
+const getRequestsFallback = async (cafeId) => {
+  try {
+    const query = {
+      structuredQuery: {
+        from: [{ collectionId: 'Requests' }],
+        where: {
+          fieldFilter: {
+            field: { fieldPath: 'cafe_id' },
+            op: 'EQUAL',
+            value: { stringValue: cafeId }
+          }
+        }
+      }
+    };
+    const response = await fetch(`${BASE_URL}:runQuery`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(query)
+    });
+    if (!response.ok) return [];
+    const result = await response.json();
+    const requests = [];
+    for (const item of result) {
+      if (item.document) {
+        const doc = parseFirestoreDocument(item.document);
+        if (doc.status === 'bekliyor') {
+          requests.push(doc);
+        }
+      }
+    }
+    // Sort descending manually
+    return requests.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+  } catch (error) {
+    return [];
+  }
+};
+
+// Update request status (Mark as completed)
+export const updateRequestStatus = async (requestId) => {
+  try {
+    // We use PATCH in REST API to update a field
+    const response = await fetch(`${BASE_URL}/Requests/${requestId}?updateMask.fieldPaths=status`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fields: {
+          status: { stringValue: 'tamamlandı' }
+        }
+      })
+    });
+    if (!response.ok) throw new Error('Failed to update request');
+    return true;
+  } catch (error) {
+    console.error("Error updating request: ", error);
+    throw error;
+  }
+};
+
