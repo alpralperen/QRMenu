@@ -1,44 +1,26 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Heart, Info, AlertTriangle } from 'lucide-react';
-import { getProductById } from '../services/db';
+import { useAppContext } from '../context/AppContext';
 
 export const ProductDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { products, productsLoading } = useAppContext();
   const [product, setProduct] = useState(null);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchProduct = async () => {
-      setLoading(true);
-      const data = await getProductById(id);
-      
-      // Mock if not found (for dev)
-      if (!data) {
-        setProduct({
-          id: id,
-          title: 'Cappuccino',
-          description: 'Yoğun espresso, sıcak süt ve süt köpüğü ile hazırlanır.',
-          price: 85,
-          image_url: 'https://images.unsplash.com/photo-1572442388796-11668a67e53d?w=800&q=80',
-          ingredients: ['Espresso', 'Süt', 'Süt Köpüğü'],
-          allergens: ['Süt içerir', 'Laktoz içerir']
-        });
-      } else {
-        setProduct(data);
-      }
-      setLoading(false);
-    };
+    if (!productsLoading) {
+      const found = products.find(p => p.id === id);
+      setProduct(found);
+    }
+  }, [id, products, productsLoading]);
 
-    fetchProduct();
-  }, [id]);
-
-  if (loading) {
+  if (productsLoading) {
     return <div className="flex h-screen items-center justify-center">Yükleniyor...</div>;
   }
 
-  if (!product) return <div>Ürün bulunamadı.</div>;
+  if (!product) return <div className="flex h-screen items-center justify-center">Ürün bulunamadı.</div>;
 
   return (
     <div style={styles.container} className="animate-fade-in">

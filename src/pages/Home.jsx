@@ -6,9 +6,7 @@ import { getProducts } from '../services/db';
 import { useAppContext } from '../context/AppContext';
 
 export const Home = () => {
-  const { cafeId } = useAppContext();
-  const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { products, productsLoading } = useAppContext();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('Tümü');
 
@@ -18,26 +16,6 @@ export const Home = () => {
     { name: 'Tatlılar', icon: CakeSlice },
     { name: 'Atıştırmalık', icon: UtensilsCrossed },
   ];
-
-  useEffect(() => {
-    const fetchProducts = async () => {
-      setLoading(true);
-      const data = await getProducts(cafeId);
-      // Eğer hiç data yoksa mock data basabiliriz (geliştirme amaçlı)
-      if (data.length === 0) {
-         setProducts([
-           { id: '1', title: 'Cappuccino', description: 'Yoğun espresso, sıcak süt ve süt köpüğü.', price: 85, category: 'Kahveler', image_url: 'https://images.unsplash.com/photo-1572442388796-11668a67e53d?w=500&q=80' },
-           { id: '2', title: 'Cheesecake', description: 'Kremamsı cheesecake, orman meyveleri.', price: 120, category: 'Tatlılar', image_url: 'https://images.unsplash.com/photo-1533134242443-d4fd215305ad?w=500&q=80' },
-           { id: '3', title: 'Avokadolu Tost', description: 'Avokado, cherry domates, tam buğday ekmeği.', price: 110, category: 'Atıştırmalık', image_url: 'https://images.unsplash.com/photo-1541519227354-08fa5d50c44d?w=500&q=80' }
-         ]);
-      } else {
-         setProducts(data);
-      }
-      setLoading(false);
-    };
-
-    fetchProducts();
-  }, [cafeId]);
 
   const filteredProducts = products.filter(p => {
     const matchesCategory = activeCategory === 'Tümü' || p.category === activeCategory;
@@ -92,7 +70,7 @@ export const Home = () => {
       {/* Product List */}
       <div style={styles.productList}>
         <h3 style={styles.sectionTitle}>Öne Çıkanlar</h3>
-        {loading ? (
+        {productsLoading ? (
           <p className="text-center py-4">Yükleniyor...</p>
         ) : (
           filteredProducts.map(product => (
